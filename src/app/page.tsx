@@ -1,69 +1,125 @@
-import Image from "next/image";
+import Link from "next/link";
+import { createBookingAction } from "@/app/actions";
+import {
+  callListParents,
+  callListStudentsByParent,
+  callListAvailableTrialClasses,
+  callListTrialClasses,
+} from "@/lib/internal-api";
+import { parseId } from "@/lib/parse-id";
+import { button, select, label, link, card, heading, muted } from "@/app/ui";
 
-export default function Home() {
+// Reads straight from Postgres via Prisma on every request (not through
+// fetch(), so Next.js won't auto-detect it as dynamic) - force it so the
+// available-seats list is never stale from a cached build.
+export const dynamic = "force-dynamic";
+
+export default async function BookingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ parent_id?: string; error?: string }>;
+}) {
+  const { parent_id, error } = await searchParams;
+  const parentId = parseId(parent_id);
+
+  const { body: parents } = await callListParents();
+  const { body: trialClasses } = await callListAvailableTrialClasses();
+  const { body: allTrialClasses } = await callListTrialClasses();
+  const students = parentId !== null
+    ? (await callListStudentsByParent(parentId)).body
+    : [];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto max-w-xl space-y-6 px-4 py-10">
+      <h1 className="text-2xl font-bold">Trial Class Booking</h1>
+
+      {error && (
+        <p className="rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+          {error}
+        </p>
+      )}
+
+      <section className={card}>
+        <h2 className={`mb-3 ${heading}`}>1. Pilih Parent</h2>
+        <form method="GET" action="/" className="flex items-center gap-2">
+          <select name="parent_id" defaultValue={parent_id ?? ""} className={select}>
+            <option value="" disabled>
+              -- pilih parent --
+            </option>
+            {parents.map((parent) => (
+              <option key={parent.id} value={parent.id}>
+                {parent.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className={button}>
+            Lanjut →
+          </button>
+        </form>
+      </section>
+
+      {parentId !== null && (
+        <section className={card}>
+          <h2 className={`mb-3 ${heading}`}>
+            2. Pilih Student &amp; Trial Class
+          </h2>
+          {students.length === 0 ? (
+            <p className={muted}>Parent ini belum punya student.</p>
+          ) : trialClasses.length === 0 ? (
+            <p className={muted}>Tidak ada trial class yang masih available.</p>
+          ) : (
+            <form action={createBookingAction} className="space-y-4">
+              <input type="hidden" name="parent_id" value={String(parentId)} />
+
+              <div>
+                <label className={label}>Student</label>
+                <select name="student_id" required className={`${select} w-full`}>
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={label}>Trial Class</label>
+                <select
+                  name="trial_class_id"
+                  required
+                  className={`${select} w-full`}
+                >
+                  {trialClasses.map((trialClass) => (
+                    <option key={trialClass.id} value={trialClass.id}>
+                      {trialClass.name} (capacity {trialClass.capacity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" className={button}>
+                Book Trial Class
+              </button>
+            </form>
+          )}
+        </section>
+      )}
+
+      <section className={card}>
+        <h2 className={`mb-3 ${heading}`}>Roster (admin)</h2>
+        <ul className="space-y-1">
+          {allTrialClasses.map((trialClass) => (
+            <li key={trialClass.id}>
+              <Link
+                href={`/admin/trial-classes/${trialClass.id}`}
+                className={link}
+              >
+                {trialClass.name} (capacity {trialClass.capacity})
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
   );
 }

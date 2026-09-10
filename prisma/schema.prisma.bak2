@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Parent {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  students  Student[]
+
+  @@map("parents")
+}
+
+model Student {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  parentId  BigInt   @map("parent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  parent    Parent    @relation(fields: [parentId], references: [id])
+  bookings  Booking[]
+
+  @@map("students")
+}
+
+model TrialClass {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  capacity  Int      @default(4)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bookings  Booking[]
+
+  @@map("trial_classes")
+}
+
+enum BookingStatus {
+  pending_payment
+  confirmed
+  payment_failed
+  cancelled
+}
+
+model Booking {
+  id           BigInt        @id @default(autoincrement())
+  studentId    BigInt        @map("student_id")
+  trialClassId BigInt        @map("trial_class_id")
+  status       BookingStatus @default(pending_payment)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  student         Student          @relation(fields: [studentId], references: [id])
+  trialClass      TrialClass       @relation(fields: [trialClassId], references: [id])
+  paymentAttempts PaymentAttempt[]
+
+  @@map("bookings")
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+}
+
+model PaymentAttempt {
+  id            BigInt        @id @default(autoincrement())
+  bookingId     BigInt        @map("booking_id")
+  attemptNumber Int           @map("attempt_number")
+  paymentMethod String        @db.VarChar(100) @map("payment_method")
+  status        PaymentStatus
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  booking       Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("payment_attempts")
+}
