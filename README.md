@@ -1,6 +1,6 @@
 # Trial Booking Reliability System
 
-A minimal, backend-correctness-focused slice of a trial class booking system, built as a take-home exercise for the Senior Full-Stack Engineer role at Ottodot. The brief: get the booking/payment invariants and the last-seat race condition provably right — not ship a feature-complete product.
+A minimal, backend-correctness-focused slice of a trial class booking system. The brief: get the booking/payment invariants and the last-seat race condition provably right — not ship a feature-complete product.
 
 Only **trial booking** is implemented. Regular enrollment is explicitly out of scope.
 

@@ -16,7 +16,7 @@ afterAll(async () => {
 /**
  * Sets up a class with exactly 1 seat left (3 of 4 confirmed) and two
  * students each holding a pending booking for that same class - the exact
- * "User A / User B" situation from REQUIREMENTS.md.
+ * "User A / User B" situation.
  */
 async function setUpLastSeatScenario() {
   const trialClass = await createTrialClass(4);

@@ -34,6 +34,5 @@ export async function payBookingAction(formData: FormData) {
 
   // Redirecting back to the same page re-runs the Server Component, so it
   // re-fetches the booking's latest status - this is the "revalidation"
-  // step called for in REQUIREMENTS.md instead of client-side state.
   redirect(`/bookings/${bookingId}`);
 }
