@@ -4,12 +4,18 @@ import {
   createParentWithStudents,
   createTrialClass,
   createConfirmedBooking,
-  cleanupTestData,
+  // cleanupTestData,
 } from "./helpers";
 import { callCreateBooking, callPayBooking } from "./api-client";
 
 afterAll(async () => {
-  await cleanupTestData();
+  // Cleanup disabled on purpose: leaves this test's rows in place so they
+  // can be inspected directly (Prisma Studio / psql) after a run, as proof
+  // beyond the console output above. Re-enable by importing cleanupTestData
+  // from "./helpers" again and calling it here - or just run
+  // `npx prisma db seed` to wipe everything and reset to the documented
+  // demo state when done inspecting.
+  // await cleanupTestData();
   await prisma.$disconnect();
 });
 
@@ -33,6 +39,27 @@ async function setUpLastSeatScenario() {
   return { trialClass, bookingIdA: bookingA.body.booking_id!, bookingIdB: bookingB.body.booking_id! };
 }
 
+/**
+ * Fires both payment requests at once and times each one individually.
+ * The loser's elapsed time is the actual, visible evidence that it was
+ * blocked on `SELECT ... FOR UPDATE` and not just "unlucky" - it's not
+ * inferred from the pass/fail outcome alone.
+ */
+async function payBothConcurrently(bookingIdA: number, bookingIdB: number) {
+  const start = Date.now();
+  const [resultA, resultB] = await Promise.all([
+    callPayBooking(bookingIdA, "mock_card").then((r) => ({
+      ...r,
+      elapsedMs: Date.now() - start,
+    })),
+    callPayBooking(bookingIdB, "mock_card").then((r) => ({
+      ...r,
+      elapsedMs: Date.now() - start,
+    })),
+  ]);
+  return { resultA, resultB };
+}
+
 describe("last-seat race condition", () => {
   it("confirms exactly one of two concurrent payments for the final seat", async () => {
     const { trialClass, bookingIdA, bookingIdB } = await setUpLastSeatScenario();
@@ -41,10 +68,7 @@ describe("last-seat race condition", () => {
     // their first `await prisma...` call before either one's DB round trip
     // resolves, so the two payment transactions genuinely overlap at the
     // database level - see the explanation given alongside this test.
-    const [resultA, resultB] = await Promise.all([
-      callPayBooking(bookingIdA, "mock_card"),
-      callPayBooking(bookingIdB, "mock_card"),
-    ]);
+    const { resultA, resultB } = await payBothConcurrently(bookingIdA, bookingIdB);
 
     const outcomes = [resultA.body, resultB.body];
     const confirmed = outcomes.filter((o) => o.status === "confirmed");
@@ -63,6 +87,25 @@ describe("last-seat race condition", () => {
       where: { trialClassId: trialClass.id, status: "confirmed" },
     });
     expect(confirmedCount).toBe(trialClass.capacity);
+
+    // --- printed evidence, not just the pass/fail above ---
+    console.log(
+      `\n[last-seat race] trial_class=${trialClass.id} capacity=${trialClass.capacity}`,
+    );
+    console.log(
+      `  booking A (#${bookingIdA}) -> ${resultA.body.status}` +
+        (resultA.body.reason ? ` (${resultA.body.reason})` : "") +
+        ` in ${resultA.elapsedMs}ms`,
+    );
+    console.log(
+      `  booking B (#${bookingIdB}) -> ${resultB.body.status}` +
+        (resultB.body.reason ? ` (${resultB.body.reason})` : "") +
+        ` in ${resultB.elapsedMs}ms`,
+    );
+    console.log(
+      `  DB-verified confirmed count (queried directly via prisma.booking.count, ` +
+        `independent of the HTTP responses above): ${confirmedCount}/${trialClass.capacity}`,
+    );
   });
 
   it("holds across repeated trials, to rule out a lucky single run", async () => {
@@ -71,14 +114,21 @@ describe("last-seat race condition", () => {
     // happen not to overlap that one time. Running several independent
     // trials makes that kind of false-positive very unlikely to slip by.
     const trials = 5;
+    const trialLog: {
+      trial: number;
+      winnerBookingId: number;
+      loserBookingId: number;
+      loserReason: string;
+      winnerMs: number;
+      loserMs: number;
+      confirmedCount: number;
+      capacity: number;
+    }[] = [];
 
     for (let i = 0; i < trials; i += 1) {
       const { trialClass, bookingIdA, bookingIdB } = await setUpLastSeatScenario();
 
-      const [resultA, resultB] = await Promise.all([
-        callPayBooking(bookingIdA, "mock_card"),
-        callPayBooking(bookingIdB, "mock_card"),
-      ]);
+      const { resultA, resultB } = await payBothConcurrently(bookingIdA, bookingIdB);
 
       const confirmedCount = await prisma.booking.count({
         where: { trialClassId: trialClass.id, status: "confirmed" },
@@ -89,6 +139,26 @@ describe("last-seat race condition", () => {
         (o) => o.status === "confirmed",
       ).length;
       expect(confirmedInResponses).toBe(1);
+
+      const winnerIsA = resultA.body.status === "confirmed";
+      const winner = winnerIsA ? resultA : resultB;
+      const loser = winnerIsA ? resultB : resultA;
+
+      trialLog.push({
+        trial: i + 1,
+        winnerBookingId: winnerIsA ? bookingIdA : bookingIdB,
+        loserBookingId: winnerIsA ? bookingIdB : bookingIdA,
+        loserReason: loser.body.reason ?? "",
+        winnerMs: winner.elapsedMs,
+        loserMs: loser.elapsedMs,
+        confirmedCount,
+        capacity: trialClass.capacity,
+      });
     }
+
+    console.log(
+      "\n[last-seat race] repeated trials - one row per race, each on a fresh trial class:",
+    );
+    console.table(trialLog);
   });
 });

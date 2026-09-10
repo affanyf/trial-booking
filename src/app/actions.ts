@@ -11,7 +11,7 @@ export async function createBookingAction(formData: FormData) {
 
   if (studentId === null || trialClassId === null) {
     redirect(
-      `/?parent_id=${parentId}&error=${encodeURIComponent("Pilih student dan trial class dulu")}`,
+      `/?parent_id=${parentId}&error=${encodeURIComponent("Please select a student and a trial class first")}`,
     );
   }
 
@@ -19,7 +19,7 @@ export async function createBookingAction(formData: FormData) {
 
   if (result.status !== 201) {
     redirect(
-      `/?parent_id=${parentId}&error=${encodeURIComponent(result.body.error ?? "Booking gagal")}`,
+      `/?parent_id=${parentId}&error=${encodeURIComponent(result.body.error ?? "Booking failed")}`,
     );
   }
 
@@ -34,5 +34,6 @@ export async function payBookingAction(formData: FormData) {
 
   // Redirecting back to the same page re-runs the Server Component, so it
   // re-fetches the booking's latest status - this is the "revalidation"
+  // step called for in REQUIREMENTS.md instead of client-side state.
   redirect(`/bookings/${bookingId}`);
 }

@@ -40,11 +40,11 @@ export default async function BookingPage({
       )}
 
       <section className={card}>
-        <h2 className={`mb-3 ${heading}`}>1. Pilih Parent</h2>
+        <h2 className={`mb-3 ${heading}`}>1. Select Parent</h2>
         <form method="GET" action="/" className="flex items-center gap-2">
           <select name="parent_id" defaultValue={parent_id ?? ""} className={select}>
             <option value="" disabled>
-              -- pilih parent --
+              -- select parent --
             </option>
             {parents.map((parent) => (
               <option key={parent.id} value={parent.id}>
@@ -53,7 +53,7 @@ export default async function BookingPage({
             ))}
           </select>
           <button type="submit" className={button}>
-            Lanjut →
+            Next →
           </button>
         </form>
       </section>
@@ -61,12 +61,12 @@ export default async function BookingPage({
       {parentId !== null && (
         <section className={card}>
           <h2 className={`mb-3 ${heading}`}>
-            2. Pilih Student &amp; Trial Class
+            2. Select Student &amp; Trial Class
           </h2>
           {students.length === 0 ? (
-            <p className={muted}>Parent ini belum punya student.</p>
+            <p className={muted}>This parent hasn't got any students yet.</p>
           ) : trialClasses.length === 0 ? (
-            <p className={muted}>Tidak ada trial class yang masih available.</p>
+            <p className={muted}>No trial classes currently available.</p>
           ) : (
             <form action={createBookingAction} className="space-y-4">
               <input type="hidden" name="parent_id" value={String(parentId)} />

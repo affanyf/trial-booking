@@ -32,13 +32,13 @@ export default async function RosterPage({
           }`}
         >
           Confirmed: {roster.confirmed_count} / {roster.capacity}
-          {isFull ? " (penuh)" : ""}
+          {isFull ? " (full)" : ""}
         </span>
       </section>
 
       <section className={card}>
         {roster.roster.length === 0 ? (
-          <p className={muted}>Belum ada student confirmed di kelas ini.</p>
+          <p className={muted}>No confirmed students in this class yet.</p>
         ) : (
           <table className={`w-full text-left text-sm ${bodyText}`}>
             <thead>
@@ -68,7 +68,7 @@ export default async function RosterPage({
 
       <p>
         <Link href="/" className={link}>
-          ← Booking baru
+          ← New Booking
         </Link>
       </p>
     </main>

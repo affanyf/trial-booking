@@ -55,7 +55,7 @@ export default async function BookingStatusPage({
                 href={`/admin/trial-classes/${body.trial_class_id}`}
                 className={link}
               >
-                lihat kelas #{body.trial_class_id} →
+                show class #{body.trial_class_id} →
               </Link>
             </dd>
           </div>
@@ -68,7 +68,7 @@ export default async function BookingStatusPage({
 
       {isPayable && (
         <section className={card}>
-          <h2 className={`mb-3 ${heading}`}>Bayar Trial Class Ini</h2>
+          <h2 className={`mb-3 ${heading}`}>Pay for This Trial Class</h2>
           <form action={payBookingAction} className="space-y-3">
             <input type="hidden" name="booking_id" value={body.booking_id} />
             <select
@@ -76,33 +76,33 @@ export default async function BookingStatusPage({
               defaultValue="mock_card"
               className={`${select} w-full`}
             >
-              <option value="mock_card">mock_card (sukses)</option>
+              <option value="mock_card">mock_card (success)</option>
               <option value="mock_card_declined">
-                mock_card_declined (sengaja gagal - demo payment_declined)
+                mock_card_declined (intentionally fails - demo payment_declined)
               </option>
             </select>
             <button type="submit" className={button}>
-              Bayar
+              Pay
             </button>
           </form>
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-            Kalau kelas sudah penuh (4/4 confirmed) saat kamu klik Bayar,
-            hasilnya otomatis <code>payment_failed</code> dengan reason{" "}
-            <code>seat_unavailable</code> - tanpa payment_method manapun
-            memengaruhi itu.
+            If the class is already full (4/4 confirmed) when you click Pay,
+            the result automatically becomes <code>payment_failed</code> with reason{" "}
+            <code>seat_unavailable</code> - regardless of which payment_method
+            is used.
           </p>
         </section>
       )}
 
       {body.status === "confirmed" && (
         <p className="text-sm text-green-700 dark:text-green-400">
-          ✅ Booking ini sudah confirmed.
+          ✅ Booking confirmed.
         </p>
       )}
 
       <p>
         <Link href="/" className={link}>
-          ← Booking baru
+          ← New Booking
         </Link>
       </p>
     </main>
